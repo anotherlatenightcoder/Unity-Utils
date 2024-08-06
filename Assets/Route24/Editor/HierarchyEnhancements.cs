@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 
 namespace Route24.Editor
 {
@@ -16,7 +17,7 @@ namespace Route24.Editor
         
         static HierarchyEnhancements()
         {
-            EditorApplication.hierarchyWindowItemOnGUI += OnHierachyWindowItemOnGUI;    
+            EditorApplication.hierarchyWindowItemOnGUI += OnHierarchyWindowItemOnGUI;    
         }
 
         private static Color GetColor(bool isSelected, bool isHovered, bool isWindowFocused)
@@ -29,12 +30,28 @@ namespace Route24.Editor
             return isHovered ? k_hoveredColor : k_defaultColor;
         }
 
-        private static void OnHierachyWindowItemOnGUI(int instanceid, Rect selectionrect)
+        static void DrawActivationToggle(Rect selectionRect, GameObject gameObject)
         {
-            GameObject obj = EditorUtility.InstanceIDToObject(instanceid) as GameObject;
+            Rect toggleRect = new Rect(selectionRect);
+            toggleRect.x -= 27f;
+            toggleRect.width = 13f;
+            bool active = EditorGUI.Toggle(toggleRect, gameObject.activeSelf);
+            if (active != gameObject.activeSelf)
+            {
+                Undo.RecordObject(gameObject, "Changing active state of game object");
+                gameObject.SetActive(active);
+                EditorSceneManager.MarkSceneDirty(gameObject.scene);
+            }
+        }
+
+        private static void OnHierarchyWindowItemOnGUI(int instanceID, Rect selectionRect)
+        {
+            GameObject obj = EditorUtility.InstanceIDToObject(instanceID) as GameObject;
             
             if (obj == null)
                 return;
+
+            DrawActivationToggle(selectionRect, obj);
             
             if (PrefabUtility.IsAnyPrefabInstanceRoot(obj))
                 return;
@@ -43,7 +60,7 @@ namespace Route24.Editor
             
             if (components == null || components.Length == 0)
                 return;
-
+            
             Component component = components.Length > 1 ? components[1] : components[0];
 
             Type type = component.GetType();
@@ -55,16 +72,16 @@ namespace Route24.Editor
             if (content.image == null)
                 return;
             
-            bool isSelected = Selection.instanceIDs.Contains(instanceid);
-            bool isHovering = selectionrect.Contains(Event.current.mousePosition);
+            bool isSelected = Selection.instanceIDs.Contains(instanceID);
+            bool isHovering = selectionRect.Contains(Event.current.mousePosition);
             bool isWindowFocused = EditorWindow.focusedWindow == EditorWindow.mouseOverWindow;
 
             Color color = GetColor(isSelected, isHovering, isWindowFocused);
-            Rect backgroundRect = selectionrect;
+            Rect backgroundRect = selectionRect;
             backgroundRect.width = 18.5f;
             EditorGUI.DrawRect(backgroundRect, color);
             
-            EditorGUI.LabelField(selectionrect, content);
+            EditorGUI.LabelField(selectionRect, content);
         }
     }   
 }
